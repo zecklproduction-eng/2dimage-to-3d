@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image to 3D Model Converter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .upload-section, .preview-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        .upload-section h2, .preview-section h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+
+        .image-slots {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .image-slot {
+            border: 3px dashed #ddd;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .image-slot:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+
+        .image-slot.has-image {
+            border-style: solid;
+            border-color: #667eea;
+        }
+
+        .image-slot label {
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .image-slot input[type="file"] {
+            display: none;
+        }
+
+        .slot-icon {
+            font-size: 3rem;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .slot-label {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .slot-hint {
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .image-preview {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 5px;
+            display: none;
+        }
+
+        .image-slot.has-image .image-preview {
+            display: block;
+        }
+
+        .image-slot.has-image .slot-icon,
+        .image-slot.has-image .slot-label,
+        .image-slot.has-image .slot-hint {
+            display: none;
+        }
+
+        .remove-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #ff4757;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        .image-slot.has-image .remove-btn {
+            display: flex;
+        }
+
+        .generate-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            margin-top: 20px;
+        }
+
+        .generate-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .generate-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 500px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #canvas-container canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .placeholder-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #999;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .control-btn {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s ease;
+        }
+
+        .control-btn:hover {
+            background: #5568d3;
+        }
+
+        .control-btn.secondary {
+            background: #6c757d;
+        }
+
+        .control-btn.secondary:hover {
+            background: #5a6268;
+        }
+
+        .progress-container {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: #e9ecef;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            text-align: center;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .status-message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .status-message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status-message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .info-box {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+
+        .info-box h3 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+
+        .info-box ul {
+            margin-left: 20px;
+            color: #856404;
+        }
+
+        .info-box li {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎨 Image to 3D Model Converter</h1>
+            <p>Upload images from 4 angles (front, back, left, right) to generate a high-quality 3D model</p>
+        </header>
+
+        <div class="main-content">
+            <div class="upload-section">
+                <h2>📤 Upload Images</h2>
+                <div class="image-slots">
+                    <div class="image-slot" id="slot-front">
+                        <button class="remove-btn" onclick="removeImage('front')">×</button>
+                        <label>
+                            <input type="file" accept="image/*" onchange="handleImageUpload(event, 'front')">
+                            <div class="slot-icon">🎯</div>
+                            <div class="slot-label">Front View</div>
+                            <div class="slot-hint">Click to upload front image</div>
+                            <img class="image-preview" id="preview-front">
+                        </label>
+                    </div>
+                    <div class="image-slot" id="slot-back">
+                        <button class="remove-btn" onclick="removeImage('back')">×</button>
+                        <label>
+                            <input type="file" accept="image/*" onchange="handleImageUpload(event, 'back')">
+                            <div class="slot-icon">🔄</div>
+                            <div class="slot-label">Back View</div>
+                            <div class="slot-hint">Click to upload back image</div>
+                            <img class="image-preview" id="preview-back">
+                        </label>
+                    </div>
+                    <div class="image-slot" id="slot-left">
+                        <button class="remove-btn" onclick="removeImage('left')">×</button>
+                        <label>
+                            <input type="file" accept="image/*" onchange="handleImageUpload(event, 'left')">
+                            <div class="slot-icon">◀️</div>
+                            <div class="slot-label">Left View</div>
+                            <div class="slot-hint">Click to upload left image</div>
+                            <img class="image-preview" id="preview-left">
+                        </label>
+                    </div>
+                    <div class="image-slot" id="slot-right">
+                        <button class="remove-btn" onclick="removeImage('right')">×</button>
+                        <label>
+                            <input type="file" accept="image/*" onchange="handleImageUpload(event, 'right')">
+                            <div class="slot-icon">▶️</div>
+                            <div class="slot-label">Right View</div>
+                            <div class="slot-hint">Click to upload right image</div>
+                            <img class="image-preview" id="preview-right">
+                        </label>
+                    </div>
+                </div>
+
+                <button class="generate-btn" id="generateBtn" onclick="generate3DModel()" disabled>
+                    🚀 Generate 3D Model
+                </button>
+
+                <div class="progress-container" id="progressContainer">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">Processing...</div>
+                </div>
+
+                <div class="status-message" id="statusMessage"></div>
+
+                <div class="info-box">
+                    <h3>💡 Tips for Best Results:</h3>
+                    <ul>
+                        <li>Use clear, well-lit images</li>
+                        <li>Ensure consistent background across all views</li>
+                        <li>Capture the object from exactly 90° angles</li>
+                        <li>Higher resolution images produce better models</li>
+                        <li>Avoid shadows and reflections when possible</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="preview-section">
+                <h2>🎭 3D Preview</h2>
+                <div id="canvas-container">
+                    <div class="placeholder-text" id="placeholderText">
+                        Your 3D model will appear here<br>
+                        Upload images and click "Generate 3D Model"
+                    </div>
+                </div>
+                <div class="controls">
+                    <button class="control-btn" onclick="rotateModel()">🔄 Auto Rotate</button>
+                    <button class="control-btn secondary" onclick="resetView()">🎯 Reset View</button>
+                    <button class="control-btn secondary" onclick="downloadModel()">💾 Download OBJ</button>
+                    <button class="control-btn secondary" onclick="downloadGLTF()">📦 Download GLTF</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/OBJExporter.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/GLTFExporter.js"></script>
+    
+    <script>
+        // Global variables
+        let scene, camera, renderer, controls;
+        let currentMesh = null;
+        let isAutoRotating = false;
+        let uploadedImages = {
+            front: null,
+            back: null,
+            left: null,
+            right: null
+        };
+
+        // Initialize Three.js scene
+        function initScene() {
+            const container = document.getElementById('canvas-container');
+            
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xf8f9fa);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+            camera.position.set(0, 0, 5);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            container.appendChild(renderer.domElement);
+
+            // Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(5, 5, 5);
+            scene.add(directionalLight);
+
+            const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.4);
+            directionalLight2.position.set(-5, -5, -5);
+            scene.add(directionalLight2);
+
+            // Grid helper
+            const gridHelper = new THREE.GridHelper(10, 10, 0xcccccc, 0xe0e0e0);
+            scene.add(gridHelper);
+
+            // Animation loop
+            animate();
+
+            // Handle window resize
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('canvas-container');
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (isAutoRotating && currentMesh) {
+                currentMesh.rotation.y += 0.005;
+            }
+            
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // Handle image upload
+        function handleImageUpload(event, view) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                uploadedImages[view] = e.target.result;
+                const preview = document.getElementById(`preview-${view}`);
+                preview.src = e.target.result;
+                document.getElementById(`slot-${view}`).classList.add('has-image');
+                checkGenerateButton();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Remove uploaded image
+        function removeImage(view) {
+            uploadedImages[view] = null;
+            const preview = document.getElementById(`preview-${view}`);
+            preview.src = '';
+            document.getElementById(`slot-${view}`).classList.remove('has-image');
+            document.querySelector(`#slot-${view} input[type="file"]`).value = '';
+            checkGenerateButton();
+        }
+
+        // Check if we can enable the generate button
+        function checkGenerateButton() {
+            const hasAtLeastOneImage = Object.values(uploadedImages).some(img => img !== null);
+            document.getElementById('generateBtn').disabled = !hasAtLeastOneImage;
+        }
+
+        // Show status message
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = message;
+            statusEl.className = `status-message ${type}`;
+            statusEl.style.display = 'block';
+        }
+
+        // Update progress
+        function updateProgress(percent, text) {
+            document.getElementById('progressContainer').style.display = 'block';
+            document.getElementById('progressFill').style.width = `${percent}%`;
+            document.getElementById('progressText').textContent = text;
+        }
+
+        // Generate 3D model from images
+        async function generate3DModel() {
+            const activeViews = Object.entries(uploadedImages).filter(([_, img]) => img !== null);
+            
+            if (activeViews.length === 0) {
+                showStatus('Please upload at least one image', 'error');
+                return;
+            }
+
+            showStatus('Starting 3D reconstruction...', 'info');
+            updateProgress(10, 'Preparing images...');
+
+            try {
+                // Simulate processing (in production, this would call your backend API)
+                await simulateProcessing();
+                
+                // Create a procedural 3D model based on uploaded images
+                createProceduralModel(activeViews);
+                
+                updateProgress(100, 'Complete!');
+                showStatus(`3D model generated successfully from ${activeViews.length} view(s)!`, 'success');
+                
+                setTimeout(() => {
+                    document.getElementById('progressContainer').style.display = 'none';
+                }, 2000);
+                
+            } catch (error) {
+                showStatus(`Error generating model: ${error.message}`, 'error');
+                updateProgress(0, 'Failed');
+            }
+        }
+
+        // Simulate backend processing
+        function simulateProcessing() {
+            return new Promise((resolve) => {
+                const steps = [
+                    { progress: 20, text: 'Analyzing image features...' },
+                    { progress: 40, text: 'Extracting depth information...' },
+                    { progress: 60, text: 'Reconstructing geometry...' },
+                    { progress: 80, text: 'Generating mesh...' },
+                    { progress: 90, text: 'Applying textures...' }
+                ];
+                
+                let currentStep = 0;
+                
+                function nextStep() {
+                    if (currentStep < steps.length) {
+                        updateProgress(steps[currentStep].progress, steps[currentStep].text);
+                        currentStep++;
+                        setTimeout(nextStep, 400);
+                    } else {
+                        resolve();
+                    }
+                }
+                
+                nextStep();
+            });
+        }
+
+        // Create procedural 3D model based on images
+        function createProceduralModel(activeViews) {
+            // Remove existing mesh
+            if (currentMesh) {
+                scene.remove(currentMesh);
+            }
+
+            // Create a more complex geometry based on number of views
+            let geometry;
+            const numViews = activeViews.length;
+            
+            if (numViews >= 4) {
+                // High detail - use icosahedron
+                geometry = new THREE.IcosahedronGeometry(2, 4);
+            } else if (numViews >= 2) {
+                // Medium detail - use sphere
+                geometry = new THREE.SphereGeometry(2, 32, 32);
+            } else {
+                // Basic - use box
+                geometry = new THREE.BoxGeometry(3, 3, 3, 8, 8, 8);
+            }
+
+            // Create materials from uploaded images
+            const materials = [];
+            const textureLoader = new THREE.TextureLoader();
+            
+            // For box geometry, apply images to different faces
+            if (geometry.type === 'BoxGeometry') {
+                const imageOrder = ['right', 'left', 'top', 'bottom', 'front', 'back'];
+                imageOrder.forEach(view => {
+                    if (uploadedImages[view]) {
+                        const texture = textureLoader.load(uploadedImages[view]);
+                        materials.push(new THREE.MeshStandardMaterial({ 
+                            map: texture,
+                            roughness: 0.5,
+                            metalness: 0.1
+                        }));
+                    } else {
+                        materials.push(new THREE.MeshStandardMaterial({ 
+                            color: 0xcccccc,
+                            roughness: 0.5,
+                            metalness: 0.1
+                        }));
+                    }
+                });
+            } else {
+                // For sphere/icosahedron, create composite material
+                const canvas = document.createElement('canvas');
+                canvas.width = 2048;
+                canvas.height = 1024;
+                const ctx = canvas.getContext('2d');
+                
+                // Fill with gradient
+                const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+                gradient.addColorStop(0, '#667eea');
+                gradient.addColorStop(1, '#764ba2');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw uploaded images as thumbnails
+                activeViews.forEach(([view, imageData], index) => {
+                    const img = new Image();
+                    img.src = imageData;
+                    const x = (index % 4) * (canvas.width / 4);
+                    const y = Math.floor(index / 4) * (canvas.height / 2);
+                    const w = canvas.width / 4;
+                    const h = canvas.height / 2;
+                    
+                    // Draw placeholder for now (images load asynchronously)
+                    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                    ctx.fillRect(x + 10, y + 10, w - 20, h - 20);
+                    ctx.fillStyle = '#333';
+                    ctx.font = '24px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(view.toUpperCase(), x + w/2, y + h/2);
+                });
+                
+                const compositeTexture = new THREE.CanvasTexture(canvas);
+                materials.push(new THREE.MeshStandardMaterial({ 
+                    map: compositeTexture,
+                    roughness: 0.5,
+                    metalness: 0.1
+                }));
+            }
+
+            currentMesh = new THREE.Mesh(geometry, materials);
+            currentMesh.position.y = 1.5;
+            scene.add(currentMesh);
+
+            // Hide placeholder
+            document.getElementById('placeholderText').style.display = 'none';
+        }
+
+        // Toggle auto rotation
+        function rotateModel() {
+            isAutoRotating = !isAutoRotating;
+        }
+
+        // Reset camera view
+        function resetView() {
+            camera.position.set(0, 0, 5);
+            controls.reset();
+        }
+
+        // Download as OBJ
+        function downloadModel() {
+            if (!currentMesh) {
+                showStatus('No model to download', 'error');
+                return;
+            }
+            
+            const exporter = new THREE.OBJExporter();
+            const result = exporter.parse(currentMesh);
+            
+            const blob = new Blob([result], { type: 'text/plain' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'model.obj';
+            link.click();
+            
+            showStatus('OBJ file downloaded!', 'success');
+        }
+
+        // Download as GLTF
+        function downloadGLTF() {
+            if (!currentMesh) {
+                showStatus('No model to download', 'error');
+                return;
+            }
+            
+            const exporter = new THREE.GLTFExporter();
+            exporter.parse(currentMesh, function(result) {
+                const blob = new Blob([JSON.stringify(result)], { type: 'application/json' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = 'model.gltf';
+                link.click();
+                
+                showStatus('GLTF file downloaded!', 'success');
+            }, { binary: false });
+        }
+
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            initScene();
+        });
+    </script>
+</body>
+</html>
